@@ -32,28 +32,35 @@ class Testbench(object):
             self.sig_reset <= 0
         else:
             self.sig_reset <= 1
-        cocotb.fork(self.busif())
-        cocotb.fork(self.rvfi_monitor())
 
     @cocotb.coroutine
-    def basic(self):
-        self.model.load_program(ADDITest())
+    def basic(self, program):
+        self.model.load_program(program())
         self.model.reset()
-        for i in range(20):
-            yield RisingEdge(self.sig_clk)
+        yield self.reset()
+        cocotb.fork(self.busif())
+        monitor = cocotb.fork(self.rvfi_monitor())
+        yield monitor.join()
 
     @cocotb.coroutine
     def rvfi_monitor(self):
+        timeout = 0
         while True:
             if self.rvfi.valid.value == 1:
+                timeout = 0
                 try:
                     rvfi = self.rvfi_extract_values(self.rvfi)
-                    self.model.commit(traces_from_rvfi(rvfi), insn = decode(rvfi.insn))
-                except ValueError:
-                    raise TestFailure(str(ValueError()))
+                    self.dut._log.info("Commit {:08x}".format(rvfi.insn))
+                    self.model.commit(traces_from_rvfi(rvfi), insn=decode(rvfi.insn))
+                except ValueError as e:
+                    print(e)
+                    raise TestFailure(e)
                 except GoldenProgramEndException:
                     raise TestSuccess()
-                self.dut._log.info("Comitted")
+            else:
+                timeout += 1
+                if timeout == 200:
+                    raise TestFailure("Timeout: Didn't see an instruction commit for 200 cycles..")
             yield RisingEdge(self.sig_clk)
 
     @staticmethod
@@ -68,7 +75,6 @@ class Testbench(object):
         for v in RVFISignals._fields:
             values[v] = signals.__getattribute__(v).__int__()
         return RVFISignals()._replace(**values)
-
 
     def fetch(self, pc: int):
         insn = self.model.fetch(pc)
