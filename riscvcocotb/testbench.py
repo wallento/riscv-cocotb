@@ -50,7 +50,7 @@ class Testbench(object):
                 timeout = 0
                 try:
                     rvfi = self.rvfi_extract_values(self.rvfi)
-                    self.dut._log.info("Commit {:08x}".format(rvfi.insn))
+                    #self.dut._log.info("Commit {:08x}".format(rvfi.insn))
                     self.model.commit(traces_from_rvfi(rvfi), insn=decode(rvfi.insn))
                 except ValueError as e:
                     print(e)

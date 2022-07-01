@@ -4,7 +4,7 @@ from riscvcocotb.testbench import Testbench
 
 from riscvmodel.variant import RV32I
 from riscvmodel.golden import GoldenProgramEndException
-from riscvmodel.isa import InstructionNOP, InstructionAND
+from riscvmodel.insn import InstructionNOP
 
 class PicoRV32Testbench(Testbench):
     _clk = "clk"
@@ -13,8 +13,8 @@ class PicoRV32Testbench(Testbench):
 
     def __init__(self, dut):
         super().__init__(RV32I, dut, self.rvfi_lookup(dut))
-        dut.mem_ready <= 0
-        dut.irq <= 0
+        dut.mem_ready.value = 0
+        dut.irq.value = 0
         self.end_of_program = False
 
     @cocotb.coroutine
@@ -30,9 +30,9 @@ class PicoRV32Testbench(Testbench):
                         except GoldenProgramEndException:
                             insn = InstructionNOP().encode()
                             self.end_of_program = True
-                    self.dut.mem_rdata <= insn
-                    self.dut.mem_ready <= 1
+                    self.dut.mem_rdata.value = insn
+                    self.dut.mem_ready.value = 1
                     yield FallingEdge(self.sig_clk)
-                    self.dut.mem_ready <= 0
+                    self.dut.mem_ready.value = 0
             else:
                 yield FallingEdge(self.sig_clk)
